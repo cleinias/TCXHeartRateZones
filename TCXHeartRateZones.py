@@ -86,7 +86,8 @@ binned_heartrates = pd.cut(heartrates, zones, labels=zone_names).value_counts()
 
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
-print("normed_heartrates") 
-print(normed_heartrates) 
+# print("normed_heartrates") 
+# print(normed_heartrates) 
 
 # return csv output with zones,frequency columns  
+print(normed_heartrates.to_csv(columns=False))
