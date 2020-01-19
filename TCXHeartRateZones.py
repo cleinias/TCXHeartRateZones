@@ -23,15 +23,7 @@
 # TCX extraction: https://stackoverflow.com/questions/32503826/how-can-i-grab-data-series-from-xml-or-tcx-file
 # Binning with pandas:Wes McKinney, Python for Data Analysis, O'Reilly 2017:203
 
-# 0.1  Acquire list of TCX files
-# 0.2  Acquire list of bins
-# 1.   Extract data series from XML-based files into a panda
-# 2.   Bin the data
-# 3.   Compute and output percentages
-
-# Go on from here
-
-# import sys, argparse
+import sys, re
 from argparse import ArgumentParser, SUPPRESS, REMAINDER
 import lxml.etree as ET
 import numpy as np
@@ -39,7 +31,7 @@ import pandas as pd
 
 # Parsing command line arguments, using options for required zone arguments
 # Disable default help
-parser = ArgumentParser(description='Read heart rate data from (a list of) TCX files and output a normed distribution by zones.', add_help=False)
+parser = ArgumentParser(description='Read heart rate data from (a list of) TCX files and output a normed distribution by athletic zones.', add_help=False)
 required = parser.add_argument_group('required arguments')
 optional = parser.add_argument_group('optional arguments')
 
@@ -52,11 +44,30 @@ optional.add_argument(
     help='show this help message and exit'
 )
 
-required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiting heart rate activity zones in the form 0, n, m, k", type=lambda s: [int(item) for item in s.split(',')], required=True)
+required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiting heart rate activity zones in the form 0, n, m, k", type=str, required=True)
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 args = parser.parse_args()
-print("zones list: ", args.zones)
-print("file list: ", args.file_list)
+
+# Validating zones list
+try: 
+    zones_edges = [int(s) for s in re.findall(r'\b\d+\b', args.zones)]
+except Exception as e:
+      print(e, "All elements of zone list must be numbers")
+      sys.exit(1)
+zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
+zones_edges.sort
+print("Using the following bin edges for the heart rate zones: ", zones_edges)
+
+# creating n zone names for length of zones list - 1 
+if len(zones_edges) < 2:
+    raise Exception("The zones list must contain at least 2 unique values")
+    sys.exit(1)
+else:
+    zone_names = ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
+print(zone_names)        
+# sys.exit(1)
+
+# Validating  file list
 
 
 # LOAD XML FILE
@@ -80,18 +91,8 @@ NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 # Extract heartrate data and convert to integers 
 heartrates = np.array(etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}), dtype=np.int32)
 
-# Define bins and labels, and proceed to bin the heartrate series
-# For this example we use 5 real zones plus zone 0:
-#  Z0 -->   0 to 100
-#  Z1 --> 101 to 123
-#  Z2 --> 124 to 136
-#  Z3 --> 137 to 146
-#  Z4 --> 147 to 154
-#  Z5 --> over 155
-
-zones = [0,100,123,136,146,154,300]                   # Would need to get it from command line, eventually
-zone_names = ['Z0', 'Z1','Z2', 'Z3', 'Z4', 'Z5']
-binned_heartrates = pd.cut(heartrates, zones, labels=zone_names).value_counts()                         
+# zone_names = ['Z0', 'Z1','Z2', 'Z3', 'Z4', 'Z5']
+binned_heartrates = pd.cut(heartrates, zones_edges, labels=zone_names).value_counts()                         
 
 # print("binned_heartrates") 
 # print(binned_heartrates) 
