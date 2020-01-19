@@ -48,27 +48,11 @@ required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiti
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 args = parser.parse_args()
 
-# Validating zones list
-try: 
-    zones_edges = [int(s) for s in re.findall(r'\b\d+\b', args.zones)]
-except Exception as e:
-      print(e, "All elements of zone list must be numbers")
-      sys.exit(1)
-zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
-zones_edges.sort
-print("Using the following bin edges for the heart rate zones: ", zones_edges)
-
-# creating n zone names for length of zones list - 1 
-if len(zones_edges) < 2:
-    raise Exception("The zones list must contain at least 2 unique values")
-    sys.exit(1)
-else:
-    zone_names = ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
-print(zone_names)        
-# sys.exit(1)
+# Validating zones list and creating zone names
+zone_edges = validate_zones_list(args.zones_edges)
+zone_names = create_zone_names(zone_edges)
 
 # Validating  file list
-
 
 # LOAD XML FILE
 #testing on file:///home/stefano/Desktop/Firefox Downloads/activity_4445930224.tcx
@@ -104,3 +88,25 @@ normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 
 # return csv output with zones,frequency columns  
 print(normed_heartrates.to_csv(header=False))
+
+def validate_zones_list(a_list):
+"""Validate the zones list as a legal list of bin edges"""
+    try: 
+        zones_edges = [int(s) for s in re.findall(r'\b\d+\b', a_list)]
+    except Exception as e:
+          print(e, "All elements of zone list must be numbers")
+          sys.exit(1)
+    zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
+    zones_edges.sort
+    print("Using the following bin edges for the heart rate zones: ", zones_edges)
+    return zones_edges
+
+def create_zone_names(bin_edges_list)
+    """create n zone names for length of zones list - 1""" 
+    if len(bin_edges_list) < 2:
+        raise Exception("The zones list must contain at least 2 unique values")
+        sys.exit(1)
+    else:
+    return ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
+    print(zone_names)        
+# sys.exit(1)
