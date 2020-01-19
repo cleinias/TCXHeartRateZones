@@ -29,6 +29,27 @@ import lxml.etree as ET
 import numpy as np
 import pandas as pd
 
+def validate_zones_list(a_list):
+    """Validate the zones list as a legal list of bin edges"""
+    try: 
+        zones_edges = [int(s) for s in re.findall(r'\b\d+\b', a_list)]
+    except Exception as e:
+          print(e, "All elements of zone list must be numbers")
+          sys.exit(1)
+    zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
+    zones_edges.sort
+    print("Using the following bin edges for the heart rate zones: ", zones_edges)
+    return zones_edges
+
+def create_zones_names(bin_edges_list):
+    """create n zone names for length of zones list - 1""" 
+    if len(bin_edges_list) < 2:
+        raise Exception("The zones list must contain at least 2 unique values")
+        sys.exit(1)
+    else:
+        return ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
+
+
 # Parsing command line arguments, using options for required zone arguments
 # Disable default help
 parser = ArgumentParser(description='Read heart rate data from (a list of) TCX files and output a normed distribution by athletic zones.', add_help=False)
@@ -49,8 +70,10 @@ required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT
 args = parser.parse_args()
 
 # Validating zones list and creating zone names
-zone_edges = validate_zones_list(args.zones_edges)
-zone_names = create_zone_names(zone_edges)
+zones_edges = validate_zones_list(args.zones)
+zones_names = create_zones_names(zones_edges)
+print("zones_edges: ", zones_edges)
+print("zones_names ", zones_names)        
 
 # Validating  file list
 
@@ -75,8 +98,8 @@ NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 # Extract heartrate data and convert to integers 
 heartrates = np.array(etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}), dtype=np.int32)
 
-# zone_names = ['Z0', 'Z1','Z2', 'Z3', 'Z4', 'Z5']
-binned_heartrates = pd.cut(heartrates, zones_edges, labels=zone_names).value_counts()                         
+# zones_names = ['Z0', 'Z1','Z2', 'Z3', 'Z4', 'Z5']
+binned_heartrates = pd.cut(heartrates, zones_edges, labels=zones_names).value_counts()                         
 
 # print("binned_heartrates") 
 # print(binned_heartrates) 
@@ -89,24 +112,4 @@ normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 # return csv output with zones,frequency columns  
 print(normed_heartrates.to_csv(header=False))
 
-def validate_zones_list(a_list):
-"""Validate the zones list as a legal list of bin edges"""
-    try: 
-        zones_edges = [int(s) for s in re.findall(r'\b\d+\b', a_list)]
-    except Exception as e:
-          print(e, "All elements of zone list must be numbers")
-          sys.exit(1)
-    zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
-    zones_edges.sort
-    print("Using the following bin edges for the heart rate zones: ", zones_edges)
-    return zones_edges
-
-def create_zone_names(bin_edges_list)
-    """create n zone names for length of zones list - 1""" 
-    if len(bin_edges_list) < 2:
-        raise Exception("The zones list must contain at least 2 unique values")
-        sys.exit(1)
-    else:
-    return ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
-    print(zone_names)        
 # sys.exit(1)
