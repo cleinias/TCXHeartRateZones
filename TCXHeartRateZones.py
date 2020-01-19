@@ -32,7 +32,7 @@
 # Go on from here
 
 # import sys, argparse
-from argparse import ArgumentParser, SUPPRESS
+from argparse import ArgumentParser, SUPPRESS, REMAINDER
 import lxml.etree as ET
 import numpy as np
 import pandas as pd
@@ -53,7 +53,7 @@ optional.add_argument(
 )
 
 required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiting heart rate activity zones in the form 0, n, m, k", type=lambda s: [int(item) for item in s.split(',')], required=True)
-required.add_argument("file_list", help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
+required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 args = parser.parse_args()
 print("zones list: ", args.zones)
 print("file list: ", args.file_list)
