@@ -1,34 +1,41 @@
-# Compute % of time in training zones from the time series 
-# extracted from a series of TCX files
+#!/usr/bin/env python
+#
+# Copyright (c) 2020 Stefano Franchi
+#
+# TCXHeartRateZones is free sofftware: you can redistribute it and/or modify 
+# it under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, either version 3 of the License, 
+# or (at your option) any later version.
+#
+# TCXHeartRateZones is distributed in the hope that it will be useful, 
+# but WITHOUT ANY WARRANTY; without even the implied warranty of 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License 
+# along with TCXHeartRateZones. If not, see http://www.gnu.org/licenses/.
 
-
-
-# TCX (Garmin's Training Center format) are XML files containing data 
-# about 1 or more activities.
-# Every activity node contains a Track node with a series of evenly spaced
-# Trackpoints (normally 1 second apart). Every Trackpoint include the Time 
-# and may include a HeartRateBpm data item (as an integer).
-
-# This utility reads all the HeartRateBpm values into a panda
-# and bins them into 5 different buckets for the specified 
-# training Zones.
-# Since all HeartRateBpm are equally spaced at 1-second intervals,
-# the number of occurrences in each bin indicates the number of seconds
-# spent in each zone.
-
-# Library used:
-# lxml.etree for manipulation and extraction of data from TCX files
-# numpy and pandas for binning
-# Refs:
-# TCX extraction: https://stackoverflow.com/questions/32503826/how-can-i-grab-data-series-from-xml-or-tcx-file
-# Binning with pandas:Wes McKinney, Python for Data Analysis, O'Reilly 2017:203
-
+from __future__ import print_function        
 import sys, re
 from argparse import ArgumentParser, SUPPRESS, REMAINDER
 import lxml.etree as ET
 import numpy as np
 import pandas as pd
 
+# Constants    
+# Defining a dictionary of Garmin's TCX format namespaces
+# All non-default namespaces defined in Garmin's TCX files asof Jan 2020, for future reference 
+#NSMAP = {"ns5" : "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
+         #"ns3" : "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
+         #"ns2" : "http://www.garmin.com/xmlschemas/UserProfile/v2",
+         #"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2",
+         #"xsi" : "http://www.w3.org/2001/XMLSchema-instance", 
+         #"ns4" : "http://www.garmin.com/xmlschemas/ProfileExtension/v1"}
+
+# Garmin's TCX format default namespace
+NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
+
+# Auxiliary functions
 def validate_zones_list(a_list):
     """Validate the zones list as a legal list of bin edges"""
     try: 
@@ -47,8 +54,7 @@ def create_zones_names(bin_edges_list):
         sys.exit(1)
     else:
         return ["Z"+ str(index[0]) for index in enumerate(zones_edges) if index[0] < len(zones_edges)-1]
-
-
+    
 # Parsing command line arguments, using options for required zone arguments
 # Disable default help
 parser = ArgumentParser(description='Read heart rate data from (a list of) TCX files and output a normed distribution by athletic zones.', add_help=False)
@@ -56,36 +62,19 @@ required = parser.add_argument_group('required arguments')
 optional = parser.add_argument_group('optional arguments')
 
 # Add back help 
-optional.add_argument(
-    '-h',
-    '--help',
-    action='help',
-    default=SUPPRESS,
-    help='show this help message and exit'
-)
+optional.add_argument('-h','--help',action='help',default=SUPPRESS,help='show this help message and exit')
 
+# Add command line arguments
 required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiting heart rate activity zones in the form 0, n, m, k", type=str, required=True)
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
 args = parser.parse_args()
 
+# Start processing
 # Validating zones list and creating zone names
 zones_edges = validate_zones_list(args.zones)
 zones_names = create_zones_names(zones_edges)
-
-# Defining a dictionary of Garmin's TCX format namespaces
-# All non-default namespaces defined in Garmin's TCX files, for future reference 
-#NSMAP = {"ns5" : "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
-         #"ns3" : "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
-         #"ns2" : "http://www.garmin.com/xmlschemas/UserProfile/v2",
-         #"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2",
-         #"xsi" : "http://www.w3.org/2001/XMLSchema-instance", 
-         #"ns4" : "http://www.garmin.com/xmlschemas/ProfileExtension/v1"}
-
-# Garmin's TCX format default namespace
-NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
-
 
 # Processing all files entered on command line
 
@@ -115,11 +104,10 @@ for filename in args.file_list:
 
 binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
 
-# print("binned_heartrates: ", binned_heartrates) 
-
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 
+# Print verbose output
 if args.verbose > 0:
     print("Original files:  {0:5d}".format(len(args.file_list)))
     print("Processed files: {0:5d}".format(len(files_processed)))
@@ -135,10 +123,10 @@ if args.verbose > 1:
     for filename in files_skipped:
         print(filename)
 
-# return csv output with zones,frequency columns, no headers by default
+# Return csv output with zones andfrequency columns, no headers by default
 columns_names = ["frequency"]
 index_name = "zone"
-if args.columns:
-    print(normed_heartrates.to_csv(header=columns_names, index_label=index_name))
-else:
+if args.columns == 0:
     print(normed_heartrates.to_csv(header=False))
+else:
+    print(normed_heartrates.to_csv(header=columns_names, index_label=index_name))
