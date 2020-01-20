@@ -72,8 +72,6 @@ args = parser.parse_args()
 # Validating zones list and creating zone names
 zones_edges = validate_zones_list(args.zones)
 zones_names = create_zones_names(zones_edges)
-# print("zones_edges: ", zones_edges)
-# print("zones_names ", zones_names)        
 
 # Defining a dictionary of Garmin's TCX format namespaces
 # All non-default namespaces defined in Garmin's TCX files, for future reference 
@@ -104,35 +102,37 @@ for filename in args.file_list:
                     heart_rates.extend(file_heartrate_data)
                     files_processed.append(filename)
                 else:
-                    print(filename, " Does not contain usable heartrate data. Skipping")
+                    print(filename, " Does not contain usable heartrate data. Skipping", file=sys.stderr)
                     files_skipped.append(filename)
             except Exception as e:
-                print(filename, " is not a valid TCX file. Skipping")
+                print(filename, " is not a valid TCX file. Skipping", file=sys.stderr)
                 print(e)
                 files_skipped.append(filename)
     except FileNotFoundError:
-        print(filename, "does not exist in filesystem. Skipping")
+        print(filename, "does not exist in filesystem. Skipping", file=sys.stderr)
         files_skipped.append(filename)
-# print(heart_rates)
-binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
+
+        binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
 
 # print("binned_heartrates: ", binned_heartrates) 
 
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 
-
-print("Original file list ({0} files):".format(len(args.file_list)))
-for filename in args.file_list:
-    print(filename)
-print("Files processed ({0} files)".format(len(files_processed)))
-for filename in files_processed:
-    print(filename)
-print("Files skipped, ({0} files)".format(len(files_skipped)))
-for filename in files_skipped:
+if args.verbose > 0:
+    print("Original file list had ({0} files):".format(len(args.file_list)))
+    print("Processed {0} files:".format(len(files_processed)))
+    print("Skipped ({0} files):".format(len(files_skipped)))
+if args.verbose > 1:
+    print("Original file list ({0} files)".format(args.file_list))    
+    for filename in args.file_list:
+            print(filename)
+    print("Files processed ({0} files)".format(len(files_processed)))
+    for filename in files_processed:
+        print(filename)
+    print("Files skipped, ({0} files)".format(len(files_skipped)))
+    for filename in files_skipped:
         print(filename)
 
 # return csv output with zones,frequency columns  
 print(normed_heartrates.to_csv(header=False))
-
-# sys.exit(1)
