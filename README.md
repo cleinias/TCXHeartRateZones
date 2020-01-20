@@ -7,7 +7,6 @@ Compute percentages of time spent in training zones from the time series extract
 
 tcxzones [-h] [-v] [-c] -z ZONES FILE_LIST  
 
-
 Required arguments | Values
 -------------------|-----------------
 -z ZONES, --zones ZONES | *A quotation-marks enclosed list of 2 or more numbers delimiting heart rate activity zones*.<br> The list indicates the zones' *edges* and will therefore have always one more element than the number of required zones.<br> A *four-elements* list such as "0,100,120,130" indicates the following *three* heartrate zones (in interval notation):<br>  (0,100], (100,120], (120,130]<br> (or: greater than 0 up to 100 included, greater than 100 up to 120 included, and greater than 120 up to 130 included).                     
@@ -17,6 +16,8 @@ FILE_LIST | *One or more TCX files containing heart rate data for one or more ac
  -v, --verbose | turn on verbose output
  -c, --columns | print column headers in output
 
+### Example
+tcxzones -z "0,100,120,130" aTCXfile.tcx aSecondTCXfile.tcx
 
 ## Description
 tcxzones.py is a small python utility that reads heart rate data from (a list of) Garmin's TCX files 
