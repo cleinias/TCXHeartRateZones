@@ -106,13 +106,13 @@ for filename in args.file_list:
                     files_skipped.append(filename)
             except Exception as e:
                 print(filename, " is not a valid TCX file. Skipping", file=sys.stderr)
-                print(e)
+                print(e, file=sys.stderr)
                 files_skipped.append(filename)
     except FileNotFoundError:
         print(filename, "does not exist in filesystem. Skipping", file=sys.stderr)
         files_skipped.append(filename)
 
-        binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
+binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
 
 # print("binned_heartrates: ", binned_heartrates) 
 
@@ -120,17 +120,17 @@ for filename in args.file_list:
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 
 if args.verbose > 0:
-    print("Original file list had ({0} files):".format(len(args.file_list)))
-    print("Processed {0} files:".format(len(files_processed)))
-    print("Skipped ({0} files):".format(len(files_skipped)))
+    print("Original files:  {0:5d}".format(len(args.file_list)))
+    print("Processed files: {0:5d}".format(len(files_processed)))
+    print("Skipped files:   {0:5d}".format(len(files_skipped)))
 if args.verbose > 1:
-    print("Original file list ({0} files)".format(args.file_list))    
+    print("Original file list ({0} files):".format(args.file_list))    
     for filename in args.file_list:
             print(filename)
-    print("Files processed ({0} files)".format(len(files_processed)))
+    print("Files processed ({0} files):".format(len(files_processed)))
     for filename in files_processed:
         print(filename)
-    print("Files skipped, ({0} files)".format(len(files_skipped)))
+    print("Files skipped, ({0} files):".format(len(files_skipped)))
     for filename in files_skipped:
         print(filename)
 
