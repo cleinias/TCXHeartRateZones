@@ -10,8 +10,8 @@ tcxheartratezones [-h] [-v] [-c] -z ZONES FILE_LIST
 
 Required arguments | Values
 -------------------|-----------------
--z ZONES, --zones ZONES | *A quotation-marks enclosed list of 2 or more numbers delimiting heart rate activity zones* The list indicates the zones' *edges* and will therefore have always one more element than the number of required zones. A list such as "0,100,120,130" indicates the following *three* heartrate zones (in interval notation):  (0,100], (100,120], (120,130] (or: greater than 0 up to 100 included, greater than 100 up to 120 included, and greater than 120 up to 130 included).                     
-FILE_LIST | *One or more TCX files containing heart rate data for one or more activities*. It must always be the last argument and may be a space-separated list of files (and/or standard command-line wildcards).    
+-z ZONES, --zones ZONES | *A quotation-marks enclosed list of 2 or more numbers delimiting heart rate activity zones*.<br> The list indicates the zones' *edges* and will therefore have always one more element than the number of required zones.<br> A *four-elements* list such as "0,100,120,130" indicates the following *three* heartrate zones (in interval notation):<br>  (0,100], (100,120], (120,130]<br> (or: greater than 0 up to 100 included, greater than 100 up to 120 included, and greater than 120 up to 130 included).                     
+FILE_LIST | *One or more TCX files containing heart rate data for one or more activities*.<br> It must always be the last argument and may be a space-separated list of files (and/or standard command-line wildcards).    
 **Optional flags** | 
  -h, --help |show a help message and exit
  -v, --verbose | turn on verbose output
@@ -38,6 +38,6 @@ the number of occurrences in each bin indicates the number of seconds
 spent in each zone.
 
 ## Library used:
-* lxml.etree for manipulation of TCX files and extraction of heartrate date
+* lxml.etree for manipulation of TCX files and extraction of heartrate data
 * numpy and pandas for binning and norming data 
 
