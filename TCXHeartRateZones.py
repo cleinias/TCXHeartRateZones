@@ -90,6 +90,8 @@ NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 # Processing all files entered on command line
 
 heart_rates =[]
+files_processed =[]
+files_skipped = []
 for filename in args.file_list:
     try:
         with open(filename, 'r') as tcx_file:
@@ -99,13 +101,17 @@ for filename in args.file_list:
                 file_heartrate_data = etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}) 
                 if len(file_heartrate_data) > 0:
                     heart_rates.extend(file_heartrate_data)
+                    files_processed.append(filename)
                 else:
                     print(filename, " Does not contain usable heartrate data. Skipping")
+                    files_skipped.append(filename)
             except Exception as e:
                 print(filename, " is not a valid TCX file. Skipping")
                 print(e)
+                files_skipped.append(filename)
     except FileNotFoundError:
         print(filename, "does not exist in filesystem. Skipping")
+        files_skipped.append(filename)
 # print(heart_rates)
 binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
 
@@ -113,8 +119,17 @@ binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges,
 
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
-# print("normed_heartrates") 
-# print(normed_heartrates) 
+
+
+print("Original file list ({0} files):".format(len(args.file_list)))
+for filename in args.file_list:
+    print(filename)
+print("Files processed ({0} files)".format(len(files_processed)))
+for filename in files_processed:
+    print(filename)
+print("Files skipped, ({0} files)".format(len(files_skipped)))
+for filename in files_skipped:
+        print(filename)
 
 # return csv output with zones,frequency columns  
 print(normed_heartrates.to_csv(header=False))
