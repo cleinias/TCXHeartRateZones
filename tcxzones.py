@@ -123,7 +123,7 @@ if args.verbose > 1:
     for filename in files_skipped:
         print(filename)
 
-# Return csv output with zones andfrequency columns, no headers by default
+# Return csv output with zones and frequency columns, no headers by default
 columns_names = ["frequency"]
 index_name = "zone"
 if args.columns == 0:
