@@ -36,9 +36,8 @@ def validate_zones_list(a_list):
     except Exception as e:
           print(e, "All elements of zone list must be numbers")
           sys.exit(1)
-    zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to ensure sorting 
-    zones_edges.sort
-    print("Using the following bin edges for the heart rate zones: ", zones_edges)
+    zones_edges=list(set(zones_edges))   # remove duplicates and turn back into list to allow sorting 
+    zones_edges.sort()
     return zones_edges
 
 def create_zones_names(bin_edges_list):
@@ -72,18 +71,10 @@ args = parser.parse_args()
 # Validating zones list and creating zone names
 zones_edges = validate_zones_list(args.zones)
 zones_names = create_zones_names(zones_edges)
-print("zones_edges: ", zones_edges)
-print("zones_names ", zones_names)        
+# print("zones_edges: ", zones_edges)
+# print("zones_names ", zones_names)        
 
-# Validating  file list
-
-# LOAD XML FILE
-#testing on file:///home/stefano/Desktop/Firefox Downloads/activity_4445930224.tcx
-xmlfile='/home/stefano/Desktop/Firefox Downloads/activity_4445930224.tcx'
-#xmlfile = 'activity_4445930224.tcx'
-# etree = ET.parse(os.path.join(cd, xmlfile))
-etree = ET.parse(xmlfile)
-
+# Defining a dictionary of Garmin's TCX format namespaces
 # All non-default namespaces defined in Garmin's TCX files, for future reference 
 #NSMAP = {"ns5" : "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
          #"ns3" : "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
@@ -95,14 +86,30 @@ etree = ET.parse(xmlfile)
 # Garmin's TCX format default namespace
 NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 
-# Extract heartrate data and convert to integers 
-heartrates = np.array(etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}), dtype=np.int32)
 
-# zones_names = ['Z0', 'Z1','Z2', 'Z3', 'Z4', 'Z5']
-binned_heartrates = pd.cut(heartrates, zones_edges, labels=zones_names).value_counts()                         
+# Processing all files entered on command line
 
-# print("binned_heartrates") 
-# print(binned_heartrates) 
+heart_rates =[]
+for filename in args.file_list:
+    try:
+        with open(filename, 'r') as tcx_file:
+            try: 
+                etree = ET.parse(tcx_file)
+                # Extract heartrate data and convert to integers 
+                file_heartrate_data = etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}) 
+                if len(file_heartrate_data) > 0:
+                    heart_rates.extend(file_heartrate_data)
+                else:
+                    print(filename, " Does not contain usable heartrate data. Skipping")
+            except Exception as e:
+                print(filename, " is not a valid TCX file. Skipping")
+                print(e)
+    except FileNotFoundError:
+        print(filename, "does not exist in filesystem. Skipping")
+# print(heart_rates)
+binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges, labels=zones_names).value_counts()                         
+
+# print("binned_heartrates: ", binned_heartrates) 
 
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
