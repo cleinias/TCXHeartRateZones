@@ -1,11 +1,11 @@
 
-# TcxHeartRateZones
+# tcxzones
 
 Compute percentages of time spent in training zones from the time series extracted from a list of TCX files.
 
 ## Usage
 
-tcxheartratezones [-h] [-v] [-c] -z ZONES FILE_LIST  
+tcxzones [-h] [-v] [-c] -z ZONES FILE_LIST  
 
 
 Required arguments | Values
@@ -19,7 +19,7 @@ FILE_LIST | *One or more TCX files containing heart rate data for one or more ac
 
 
 ## Description
-TcxHeartRateZones.py is a small python utility that reads heart rate data from (a list of) Garmin's TCX files 
+tcxzones.py is a small python utility that reads heart rate data from (a list of) Garmin's TCX files 
 and outputs a unit-normed distribution by athletic zones. 
 
 It should work with both python 2 (2.7+) and python 3. 
