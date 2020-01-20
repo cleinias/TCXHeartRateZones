@@ -56,8 +56,6 @@ moc_*
 *.bbl
 
 
-## Homeo created ddata files ##
+## JupyterLab notebooks      ##
 ###############################
-
-*.csv
-*.traj
+*.ipynb

@@ -20,8 +20,9 @@ FILE_LIST | One or more TCX or FIT files containing heart rate data for one or m
 
 ## Description
 TcxHeartRateZones.py is a small python utility that reads heart rate data from (a list of) Garmin's TCX files 
-and outputs a unit-normed distribution by athletic zones.
-
+and outputs a unit-normed distribution by athletic zones. It should work with both python 2 (2.7+) and python 3. 
+Notice however that the pandas library TcxHeartRateZones relies upon has dropped support 
+for python 2 starting 1/1/2020, and it may cease to work at any time.
  
 TCX (Garmin's Training Center format) are XML files containing data  about 1 or more activities.
 Every activity node contains a Track node with a series of evenly spaced
