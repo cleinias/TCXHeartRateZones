@@ -67,6 +67,7 @@ optional.add_argument(
 required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiting heart rate activity zones in the form 0, n, m, k", type=str, required=True)
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
+optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
 args = parser.parse_args()
 
 # Validating zones list and creating zone names
@@ -134,5 +135,10 @@ if args.verbose > 1:
     for filename in files_skipped:
         print(filename)
 
-# return csv output with zones,frequency columns  
-print(normed_heartrates.to_csv(header=False))
+# return csv output with zones,frequency columns, no headers by default
+columns_names = ["frequency"]
+index_name = "zone"
+if args.columns:
+    print(normed_heartrates.to_csv(header=columns_names, index_label=index_name))
+else:
+    print(normed_heartrates.to_csv(header=False))
