@@ -17,6 +17,7 @@
 
 from __future__ import print_function        
 import sys, re
+from datetime import timedelta
 from argparse import ArgumentParser, SUPPRESS, REMAINDER
 import lxml.etree as ET
 import numpy as np
@@ -34,6 +35,7 @@ import pandas as pd
 
 # Garmin's TCX format default namespace
 NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
+METERS2MILES = 1609.34
 
 # Auxiliary functions
 def validate_zones_list(a_list):
@@ -69,6 +71,7 @@ required.add_argument("-z","--zones", help="A list of 2 or more numbers delimiti
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
+optional.add_argument("-d", "--details", action="store_true", default=False, help="Prepend activity's or activities' details to zone data (date, time, activity, etc.)")
 args = parser.parse_args()
 
 # Start processing
@@ -79,7 +82,7 @@ zones_names = create_zones_names(zones_edges)
 # Processing all files entered on command line
 
 heart_rates =[]
-files_processed =[]
+files_processed ={}
 files_skipped = []
 for filename in args.file_list:
     try:
@@ -87,10 +90,13 @@ for filename in args.file_list:
             try: 
                 etree = ET.parse(tcx_file)
                 # Extract heartrate data and convert to integers 
-                file_heartrate_data = etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces={"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}) 
+                file_heartrate_data = etree.xpath('.//tcd:HeartRateBpm/tcd:Value/text()', namespaces=NSMAP) 
                 if len(file_heartrate_data) > 0:
                     heart_rates.extend(file_heartrate_data)
-                    files_processed.append(filename)
+                    files_processed[filename]={"datetime": etree.xpath('.//tcd:Activity/tcd:Id/text()', namespaces=NSMAP)[0],
+                                               "activity_type": etree.xpath('.//tcd:Activity/@Sport', namespaces=NSMAP)[0],
+                                               "total_time_seconds": etree.xpath('.//tcd:TotalTimeSeconds/text()', namespaces=NSMAP)[0],
+                                               "total_distance_meters": etree.xpath('.//tcd:Activity/tcd:Lap/tcd:DistanceMeters/text()', namespaces=NSMAP)[0]} 
                 else:
                     print(filename, " Does not contain usable heartrate data. Skipping", file=sys.stderr)
                     files_skipped.append(filename)
@@ -107,16 +113,24 @@ binned_heartrates = pd.cut((np.array(heart_rates, dtype=np.int32)), zones_edges,
 # Normalize binned heartrates to unit vector                                
 normed_heartrates = binned_heartrates.div(binned_heartrates.sum())
 
+# Prepend header info if requested
+if args.details == True:
+    for file, details in files_processed.items():
+        print("File: ", file,
+              " Date: ", details['datetime'],
+              " Activity: ", details['activity_type'], 
+              " Distance (mi): ", float(details['total_distance_meters'])/METERS2MILES,
+              " Duration: ", str(timedelta(seconds=float(details['total_time_seconds']))))
 # Print verbose output
 if args.verbose > 0:
     print("Original files:  {0:5d}".format(len(args.file_list)))
-    print("Processed files: {0:5d}".format(len(files_processed)))
+    print("Processed files: {0:5d}".format(len(files_processed.keys())))
     print("Skipped files:   {0:5d}".format(len(files_skipped)))
 if args.verbose > 1:
     print("Original file list ({0} files):".format(args.file_list))    
     for filename in args.file_list:
             print(filename)
-    print("Files processed ({0} files):".format(len(files_processed)))
+    print("Files processed ({0} files):".format(len(files_processed.keys())))
     for filename in files_processed:
         print(filename)
     print("Files skipped, ({0} files):".format(len(files_skipped)))
