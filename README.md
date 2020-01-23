@@ -5,7 +5,7 @@ Compute percentages of time spent in training zones from the time series extract
 
 ## Usage
 
-tcxzones [-h] [-v] [-c] -z ZONES FILE_LIST  
+tcxzones [-h] [-v] [-c] [-d] -z ZONES FILE_LIST  
 
 Required arguments | Values
 -------------------|-----------------
@@ -15,6 +15,7 @@ FILE_LIST | *One or more TCX files containing heart rate data for one or more ac
  -h, --help |show a help message and exit
  -v, --verbose | turn on verbose output
  -c, --columns | print column headers in output
+ -d, --details | prepend details about processed files to output
 
 ### Example
 tcxzones -z "0,100,120,130" aTCXfile.tcx aSecondTCXfile.tcx
