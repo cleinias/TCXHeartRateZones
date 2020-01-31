@@ -37,7 +37,6 @@ import sys, re, os
 from datetime import datetime, timedelta
 from argparse import ArgumentParser, SUPPRESS, REMAINDER
 import lxml.etree as ET
-import numpy as np
 import pandas as pd
 from imath import floor
 
