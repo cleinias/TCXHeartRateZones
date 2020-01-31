@@ -25,11 +25,11 @@
 #         WHILE HEART RATE IS LEFT FREE TO CHANGE.
 #         GARMIN TCX FILES REPORT 'RUNNING' AS ACTIVITY TYPE ALSO FOR INDOOR RUNNING OR 
 #         TREADMILL RUNNING, SO WE WILL USE A COMMAND LINE FLAG THAT SETS SPEED TO A DUMMY CONSTANT 
-# 1. PROCESSING OF INPUT
-# 2. PROCESSING OF MULTIPLE FILES
-# 3. COLLECTION OF RESULTS INTO A PANDAS (FOR POSSIBLE FURTHER PROCESSING)
-# 4. WRITING OUT IN CSV FORMAT
-# 5. FACTORIZATION OF CODE INTO FUNCTIONS
+# 1. DONE - PROCESSING OF INPUT
+# 2. DONE - PROCESSING OF MULTIPLE FILES
+# 3. DONE - COLLECTION OF RESULTS INTO A PANDAS (FOR POSSIBLE FURTHER PROCESSING) 
+# 4. DONE - WRITING OUT IN CSV FORMAT                             
+# 5. DONE - FACTORIZATION OF CODE INTO FUNCTIONS
 
 from __future__ import print_function
 from ntpath import  basename 
@@ -40,7 +40,7 @@ import lxml.etree as ET
 import pandas as pd
 from imath import floor
 
-# Constants    
+# CONSTANTS    
 # Defining a dictionary of Garmin's TCX format namespaces
 # All non-default namespaces defined in Garmin's TCX files asof Jan 2020, for future reference 
 #NSMAP = {"ns5" : "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
@@ -56,7 +56,7 @@ NSMAP = {"tcd" : "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 METERS2MILES = 1609.34
 MIN2SECS = 60 # for clarity in formulas
 
-# Parsing command line arguments, using options for required zone arguments
+# Parsing command line arguments, using options for required arguments
 # Disable default help
 parser = ArgumentParser(description='Read speed and heart rate data from (a list of) TCX files and compues the cardiac drift between the lap\'s first and second half', add_help=False)
 required = parser.add_argument_group('required arguments')
@@ -69,20 +69,26 @@ optional.add_argument('-h','--help',action='help',default=SUPPRESS,help='show th
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
-optional.add_argument("-d", "--details", action="store_true", default=False, help="Prepend activity's or activities' details to zone data (date, time, activity, etc.)")
 optional.add_argument("-t", "--treadmill", action="store_true", default=False, help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
+optional.add_argument("-l", "--local-time", action="store_true", default=True, help="Converts laps's UTC time to local time. Needs timezonefinder package installed ")
 args = parser.parse_args()
 
-# filename="/home/stefano/Dropbox/Running/Training/Uphill-Athlete-20-weeks-SUMMER-2020-TRAIL/TCX-Files/Week_0_02/activity_4485827501.tcx"
-# with open(filename,"r+") as tcx_file:
-#      etree = ET.parse(tcx_file)
+try:
+    from timezonefinder import TimezoneFinder
+    import pytz
+except:
+    print("timezonefinderpackage not installed. Running program with --no-local-time option.")
+    args.local_time=False
+
 
 # FUNCTIONS
-# def meter_sec_2_min_miles_string(n):
-#     """Convert m/s speed into a minutes/mil pace string """
-#     miles_a_minute = n/METERS2MILES*60
-#     return miles_a_minute
-    
+
+def UTC_datetime2local(datetime, coords):
+    """Convert TCX UTS's datetimes to local time"""
+
+    datetime = pytz.utc.localize(datetime) #Garmin's TCX datetimes are always UTC, but only implicitly 
+    return datetime.astimezone(pytz.timezone(TimezoneFinder().timezone_at(lng=coords[0], lat=coords[1])))
+        
 def mil_min_val_to_mil_min_string(val):
     """Convert a decimal miles/min value into a standard formatted string."""
     if val == 0:
@@ -122,6 +128,8 @@ def parse_tcx_lap(file_laps):
     laps=[]   
     for (filename,lap) in file_laps:
         lap_data = {}
+        lap_data['Lap_coords']       = (float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LongitudeDegrees/text()', namespaces=NSMAP)[0]),
+                                        float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LatitudeDegrees/text()', namespaces=NSMAP)[0]))                           
         lap_data['Filename']         = filename
         lap_data['TotalTimeSeconds'] = int(float(lap.xpath('.//tcd:TotalTimeSeconds/text()',namespaces=NSMAP)[0]))
         lap_data['DistanceMeters']   = [float(i) for i in lap.xpath('.//tcd:DistanceMeters/text()',namespaces=NSMAP)[1:]]
@@ -133,15 +141,17 @@ def parse_tcx_lap(file_laps):
 
 def get_lap_times_and_duration(lap_data):
     """Extract beginning time, end time, and duration from lap info and format appropriately.
+       Convert TCX's UTC time to lap's local time if passed long and lat coords.  
        Return a tuple with the formatted info"""
-
-    # FIXME:add conversion to local time zone (from coordinates)?
     
     beginning_date_string = lap_data['Time_list'][0]
     end_date_string = lap_data['Time_list'][-1]
     date_format_string = "%Y-%m-%dT%H:%M:%S.%fZ"
     beginning_time=datetime.strptime(beginning_date_string,date_format_string)
     end_time = datetime.strptime(end_date_string,date_format_string)
+    if  lap_data['Lap_coords'] and args.local_time:
+        beginning_time = UTC_datetime2local(beginning_time, lap_data['Lap_coords']) 
+        end_time = UTC_datetime2local(end_time, lap_data['Lap_coords']) 
     duration = end_time - beginning_time
     return (beginning_time, end_time, duration)
 
@@ -150,19 +160,12 @@ def get_lap_times_and_duration(lap_data):
 def parse_laps(laps):
     """ Parse each lap's basic info into a panda dataframe of extracted and computed data.  
         Return the dataframe."""
-    
-#     # FIXME: convert use panda dataframe instead of np.array"
-#     lap_columns = ["Filename", "Total time sec.", "Start time", "End time", "Duration","Total distance","Total trackpoints",
-#                "Total time","Avg. bpm","Speed m/s", "Pace (dec. min/mi)","Half time","1st half distance", 
-#                "1st half speed","1st half pace", "1st half avg bpm", "1st half speed/bpm ratio", 
-#                "2nd half distance", "2nd half speed", "2nd half pace", "2nd half avg. bpm", "2nd half speed/bpm ratio",
-#                "1st/2nd half cardiac drift"]
- 
+     
     all_laps_data = [] # the list of dictionaries for the dataframe data 
     for i, lap in enumerate(laps):
         try:
             lap_row = {}  # a row in the dataframe with all the data for the lap
-            # general info
+            # general info 
             lap_row["Filename"] = lap["Filename"]
             lap_row["Beginning time"] = get_lap_times_and_duration(lap)[0]
             lap_row["End time"] = get_lap_times_and_duration(lap)[1]
@@ -220,10 +223,6 @@ def make_lap_header(lap):
 # OUTPUT CSV-FORMATTED DATA        
 def csv_output(laps_array):
     """Return a csv formatted string with all the data in the array and optionally the column headers"""
-#     column_names = ["Total_distance","Total trackpoints","Total time","Avg. bpm","Speed m/s", "Pace (dec. min/mi)",
-#                     "Half time","1st half distance", "1st half speed","1st half pace", "1st half avg bpm",
-#                     "1st half speed/bpm ratio", "2nd half distance", "2nd half speed", "2nd half pace", "2nd half avg. bpm", "2nd half speed/bpm ratio",
-#                     "1st/2nd half cardiac drift"]
     index_name = "lap"
     if not args.verbose:
         columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift"]
