@@ -225,10 +225,12 @@ def csv_output(laps_array):
 #                     "1st half speed/bpm ratio", "2nd half distance", "2nd half speed", "2nd half pace", "2nd half avg. bpm", "2nd half speed/bpm ratio",
 #                     "1st/2nd half cardiac drift"]
     index_name = "lap"
+    if not args.verbose:
+        columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift"]
     if args.columns == 0:
-        return laps_array.to_csv(header=False)
+        return laps_array.to_csv(columns = columns_to_write,header=False)
     else:
-        return laps_array.to_csv(header=True, index_label=index_name)
+        return laps_array.to_csv(columns = columns_to_write,header=True, index_label=index_name)
 
 
 # main loop
