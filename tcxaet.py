@@ -69,10 +69,12 @@ optional.add_argument('-h','--help',action='help',default=SUPPRESS,help='show th
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
-optional.add_argument("-t", "--treadmill", action="store_true", default=False, help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
 optional.add_argument("-l", "--local-time", action="store_true", default=True, help="Converts laps's UTC time to local time. Needs timezonefinder package installed ")
+# the treadmill option accept a single parameter for the dummy treadmill pace, defaults to 12 min/mi if the option is given with no value, and to False if not given  
+optional.add_argument("-t", "--treadmill", default=None, nargs="?", const = 12, type=float, help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
 args = parser.parse_args()
 
+                      
 try:
     from timezonefinder import TimezoneFinder
     import pytz
@@ -222,10 +224,13 @@ def make_lap_header(lap):
 
 # OUTPUT CSV-FORMATTED DATA        
 def csv_output(laps_array):
-    """Return a csv formatted string with all the data in the array and optionally the column headers"""
+    """Return a csv formatted string with either a short or a long 
+       version of the data in the array and optionally the column headers"""
     index_name = "lap"
     if not args.verbose:
         columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift"]
+    else:
+        columns_to_write = None                  # Pandas' to_csv print all columns is passed None as arg to param columns 
     if args.columns == 0:
         return laps_array.to_csv(columns = columns_to_write,header=False)
     else:
