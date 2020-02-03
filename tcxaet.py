@@ -70,10 +70,11 @@ required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT
 optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
 optional.add_argument("-l", "--local-time", action="store_true", default=True, help="Converts laps's UTC time to local time. Needs timezonefinder package installed ")
-# the treadmill option accept a single parameter for the dummy treadmill pace, defaults to 12 min/mi if the option is given with no value, and to False if not given  
-optional.add_argument("-t", "--treadmill", default=None, nargs="?", const = 12, type=float, help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
+# the treadmill option accepts a single parameter for the dummy treadmill pace, defaults to 12 min/mi if the option is given with no value, and to False if not given  
+optional.add_argument("-t", "--treadmill", default=None, nargs="?", const = 12,  help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
 args = parser.parse_args()
 
+args.treadmill = float(args.treadmill)
                       
 try:
     from timezonefinder import TimezoneFinder
@@ -108,6 +109,11 @@ def meter_sec_2_min_miles(n):
         return 0
     else:
         return  1/miles_a_minute
+    
+def min_miles2meter_sec(n):
+    """Convert decimal miles a minute pace into speed in m/s"""
+    secs_per_meter = n* 60 /METERS2MILES
+    return 1/secs_per_meter
 
     
 # PARSE MULTIPLE FILES INTO COLLECTIONS OF LAPS
@@ -178,21 +184,32 @@ def parse_laps(laps):
             lap_row["# Trackpoints"] = len(lap['Distance_list'])                                                                                
             lap_row["Total time"] = lap['TotalTimeSeconds']                                                                      
             lap_row["Avg. BPM"] = sum((int(i) for  i in lap['Bpm_list']))/len(lap['Bpm_list'])                                          
-            lap_row["Speed (m/s)"] = lap_row["Total distance"]/lap_row["Total time"]                                                                         
-            lap_row["Pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["Speed (m/s)"]))                                                             
+            # using dummy speed value (and hence compute dummy pace) if treadmill option is active
+            if not args.treadmill:
+                lap_row["Speed (m/s)"] = lap_row["Total distance"]/lap_row["Total time"]
+            else: 
+                lap_row["Speed (m/s)"] = min_miles2meter_sec(args.treadmill)
+            lap_row["Pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["Speed (m/s)"]))
+
             lap_row["Halftime"] = floor(lap_row["Total time"] / 2) - 1
             # Add also the whole bpm list as a dataseries for possible further stats elaboration (variance, avg.,  etc)
 
             # First half data
             lap_row["1st half distance"] = float(lap['Distance_list'][int(lap_row["Halftime"])])-float(lap['Distance_list'][0])                         
-            lap_row["1st half speed (m/s)"] = lap_row["1st half distance"]/(lap_row["Total time"] / 2)                                                                     
+            if not args.treadmill:
+                lap_row["1st half speed (m/s)"] = lap_row["1st half distance"]/(lap_row["Total time"] / 2)                                                          
+            else: 
+                lap_row["1st half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
             lap_row["1st half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["1st half speed (m/s)"]))
             lap_row["1st half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][:int(lap_row["Halftime"])]))/len(lap['Bpm_list'][:int(lap_row["Halftime"])])       
             lap_row["1st half speed/avg. BPM ratio"] = lap_row["1st half speed (m/s)"]/lap_row["1st half avg. BPM"]
 
             # Second half data
             lap_row["2nd half distance"] = float(lap['Distance_list'][int(lap_row["Halftime"])])-float(lap['Distance_list'][0])                         
-            lap_row["2nd half speed (m/s)"] = lap_row["2nd half distance"]/(lap_row["Total time"] / 2)                                                                     
+            if not args.treadmill:
+                lap_row["2nd half speed (m/s)"] = lap_row["2nd half distance"]/(lap_row["Total time"] / 2)                                                                     
+            else: 
+                lap_row["2nd half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
             lap_row["2nd half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["2nd half speed (m/s)"]))
             lap_row["2nd half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][int(lap_row["Halftime"])+1:]))/len(lap['Bpm_list'][int(lap_row["Halftime"])+1:])       
             lap_row["2nd half speed/avg. BPM ratio"] = lap_row["2nd half speed (m/s)"]/lap_row["2nd half avg. BPM"]
