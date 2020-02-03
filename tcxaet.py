@@ -16,20 +16,6 @@
 # along with TCXHeartRateZones. If not, see http://www.gnu.org/licenses/.
 
 
-# COLLECTED FRAGMENTS OF THE NOTEBOOK TOWARD AN AeT CALCULATOR
-# STILL MISSING:
-#
-# 0. VIP: CARDIAC DRIFT PROCESSING ON THE BASIS OF HEARTRATE ONLY (FOR TREADMILL-BASED TESTS)
-#         IN WHICH CASE PACE AND ELEVATION IS ASSUMED TO BE CONSTANT 
-#         (AS PER THE STANDARD TREADMILL TEST PROTOCOL: https://www.uphillathlete.com/heart-rate-drift/)
-#         WHILE HEART RATE IS LEFT FREE TO CHANGE.
-#         GARMIN TCX FILES REPORT 'RUNNING' AS ACTIVITY TYPE ALSO FOR INDOOR RUNNING OR 
-#         TREADMILL RUNNING, SO WE WILL USE A COMMAND LINE FLAG THAT SETS SPEED TO A DUMMY CONSTANT 
-# 1. DONE - PROCESSING OF INPUT
-# 2. DONE - PROCESSING OF MULTIPLE FILES
-# 3. DONE - COLLECTION OF RESULTS INTO A PANDAS (FOR POSSIBLE FURTHER PROCESSING) 
-# 4. DONE - WRITING OUT IN CSV FORMAT                             
-# 5. DONE - FACTORIZATION OF CODE INTO FUNCTIONS
 
 from __future__ import print_function
 from ntpath import  basename 
@@ -74,13 +60,14 @@ optional.add_argument("-l", "--local-time", action="store_true", default=True, h
 optional.add_argument("-t", "--treadmill", default=None, nargs="?", const = 12,  help="Interpret data as treadmill data (set speed/pace to a program defined constant)")
 args = parser.parse_args()
 
-args.treadmill = float(args.treadmill)
+if args.treadmill:
+    args.treadmill = float(args.treadmill)
                       
 try:
     from timezonefinder import TimezoneFinder
     import pytz
 except:
-    print("timezonefinderpackage not installed. Running program with --no-local-time option.")
+    print("timezonefinderpackage not installed. Using UTC time and ignoring --local-time option.")
     args.local_time=False
 
 
@@ -255,8 +242,8 @@ def csv_output(laps_array):
 
 
 # main loop
-# parse all files into the array
-parsed_array = parse_laps(parse_tcx_lap(read_tcx_files(args.file_list)))
-# output data as csv with optional header
-# FIXME:TODO
-print(csv_output(parsed_array))
+if __name__ == "__main__":
+    # parse all files into the array
+    parsed_array = parse_laps(parse_tcx_lap(read_tcx_files(args.file_list)))
+    # output data as csv with optional header
+    print(csv_output(parsed_array))
