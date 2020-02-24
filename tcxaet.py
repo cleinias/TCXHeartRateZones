@@ -123,14 +123,25 @@ def parse_tcx_lap(file_laps):
     laps=[]   
     for (filename,lap) in file_laps:
         lap_data = {}
-        lap_data['Lap_coords']       = (float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LongitudeDegrees/text()', namespaces=NSMAP)[0]),
-                                        float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LatitudeDegrees/text()', namespaces=NSMAP)[0]))                           
+        # Indoor activities may not record GPS coordinates, skip if missing
+        try:
+            lap_data['Lap_coords']       = (float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LongitudeDegrees/text()', namespaces=NSMAP)[0]),
+                                            float(lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:Position/tcd:LatitudeDegrees/text()', namespaces=NSMAP)[0]))
+        except IndexError as e:
+            lap_data['Lap_coords'] = []
+            print("Lap description has no coordinates, and it may be an indoor activity. Cannot determine time zone and will use UTC time instead.", file=sys.stderr)
+            
         lap_data['Filename']         = filename
         lap_data['TotalTimeSeconds'] = int(float(lap.xpath('.//tcd:TotalTimeSeconds/text()',namespaces=NSMAP)[0]))
         lap_data['DistanceMeters']   = [float(i) for i in lap.xpath('.//tcd:DistanceMeters/text()',namespaces=NSMAP)[1:]]
-        lap_data['Bpm_list']         = [int(str(i)) for i in lap.xpath('.//tcd:HeartRateBpm/tcd:Value/text()',namespaces=NSMAP)]
-        lap_data['Distance_list']    = [int(float(i)) for i in lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:DistanceMeters/text()',namespaces=NSMAP)]
-        lap_data['Time_list']        = [str(i) for i in lap.xpath('.//tcd:Trackpoint/tcd:Time/text()',namespaces=NSMAP)]
+        # create a panda time-indexed dataframe for BPM and distance (and possibly other data if present)
+        Bpm         = [int(str(i)) for i in lap.xpath('.//tcd:HeartRateBpm/tcd:Value/text()',namespaces=NSMAP)]
+        Distance    = [int(float(i)) for i in lap.xpath('.//tcd:Track/tcd:Trackpoint/tcd:DistanceMeters/text()',namespaces=NSMAP)]
+        Time        = [pd.to_datetime(str(i)) for i in lap.xpath('.//tcd:Trackpoint/tcd:Time/text()',namespaces=NSMAP)]
+        if len(Bpm) != len(Distance) != len(Time):
+            raise Exception("There is some seriously wrong with the TCX file: the Trackpoints do not contain homogenous data")
+        lap_data['Trackpoints_series'] = pd.DataFrame({'Bpm':Bpm, 'Distance':Distance}, index=Time)
+#         print(lap_data['Trackpoints_series'])
         laps.append(lap_data)
     return laps
 
@@ -139,18 +150,23 @@ def get_lap_times_and_duration(lap_data):
        Convert TCX's UTC time to lap's local time if passed long and lat coords.  
        Return a tuple with the formatted info"""
     
-    beginning_date_string = lap_data['Time_list'][0]
-    end_date_string = lap_data['Time_list'][-1]
-    date_format_string = "%Y-%m-%dT%H:%M:%S.%fZ"
-    beginning_time=datetime.strptime(beginning_date_string,date_format_string)
-    end_time = datetime.strptime(end_date_string,date_format_string)
+    beginning_time=lap_data['Trackpoints_series'].index.values[0]
+    end_time = lap_data['Trackpoints_series'].index.values[-1]
+    print(type(beginning_time))
+    print("beginning time: ", beginning_time)
+    print("end time:  ", end_time)
     if  lap_data['Lap_coords'] and args.local_time:
         beginning_time = UTC_datetime2local(beginning_time, lap_data['Lap_coords']) 
         end_time = UTC_datetime2local(end_time, lap_data['Lap_coords']) 
     duration = end_time - beginning_time
+    print("duration:  ", duration)
     return (beginning_time, end_time, duration)
 
+def lap_halftime_value(lap):
+    """Return the time corresponding to the half point of the lap."""
 
+    return lap['Trackpoints_series'].index.min() + ((lap['Trackpoints_series'].index.max()-lap['Trackpoints_series'].index.min())/2)
+    
 # PARSE SINGLE LAPS' DATA
 def parse_laps(laps):
     """ Parse each lap's basic info into a panda dataframe of extracted and computed data.  
@@ -160,45 +176,48 @@ def parse_laps(laps):
     for i, lap in enumerate(laps):
         try:
             lap_row = {}  # a row in the dataframe with all the data for the lap
-            # general info 
+            # general info
             lap_row["Filename"] = lap["Filename"]
             lap_row["Beginning time"] = get_lap_times_and_duration(lap)[0]
             lap_row["End time"] = get_lap_times_and_duration(lap)[1]
             lap_row["Duration"] = get_lap_times_and_duration(lap)[2]
 
             # All lap data
-            lap_row["Total distance"] = lap['Distance_list'][-1]-float(lap['Distance_list'][0])
-            lap_row["# Trackpoints"] = len(lap['Distance_list'])                                                                                
+            lap_row["Total distance"] = lap['Trackpoints_series']['Distance'][-1]-float( lap['Trackpoints_series']['Distance'][0])
+            lap_row["# Trackpoints"] =  lap['Trackpoints_series'].size                                                                              
             lap_row["Total time"] = lap['TotalTimeSeconds']                                                                      
-            lap_row["Avg. BPM"] = sum((int(i) for  i in lap['Bpm_list']))/len(lap['Bpm_list'])                                          
+            lap_row["Avg. BPM"] = lap['Trackpoints_series']['Bpm'].mean()                                    
             # using dummy speed value (and hence compute dummy pace) if treadmill option is active
             if not args.treadmill:
                 lap_row["Speed (m/s)"] = lap_row["Total distance"]/lap_row["Total time"]
             else: 
                 lap_row["Speed (m/s)"] = min_miles2meter_sec(args.treadmill)
-            lap_row["Pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["Speed (m/s)"]))
 
-            lap_row["Halftime"] = floor(lap_row["Total time"] / 2) - 1
-            # Add also the whole bpm list as a dataseries for possible further stats elaboration (variance, avg.,  etc)
+            lap_row["Pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["Speed (m/s)"]))
+            lap_row['Trackpoints'] = lap['Trackpoints_series']
+            lap_row["Halftime"] = lap_halftime_value(lap)
 
             # First half data
-            lap_row["1st half distance"] = float(lap['Distance_list'][int(lap_row["Halftime"])])-float(lap['Distance_list'][0])                         
+            first_half = lap['Trackpoints_series'].truncate(after = lap_row["Halftime"])
+            lap_row["1st half distance"] = first_half['Distance'].max() - first_half['Distance'].min()
             if not args.treadmill:
                 lap_row["1st half speed (m/s)"] = lap_row["1st half distance"]/(lap_row["Total time"] / 2)                                                          
             else: 
                 lap_row["1st half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
             lap_row["1st half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["1st half speed (m/s)"]))
-            lap_row["1st half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][:int(lap_row["Halftime"])]))/len(lap['Bpm_list'][:int(lap_row["Halftime"])])       
+#             lap_row["1st half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][:int(lap_row["Halftime"])]))/len(lap['Bpm_list'][:int(lap_row["Halftime"])])       
+            lap_row["1st half avg. BPM"] = first_half['Bpm'].mean()      
             lap_row["1st half speed/avg. BPM ratio"] = lap_row["1st half speed (m/s)"]/lap_row["1st half avg. BPM"]
 
             # Second half data
-            lap_row["2nd half distance"] = float(lap['Distance_list'][int(lap_row["Halftime"])])-float(lap['Distance_list'][0])                         
+            second_half = lap['Trackpoints_series'][lap_halftime_value(lap):lap['Trackpoints_series'].index.max()] 
+            lap_row["2nd half distance"] = second_half['Distance'].max() -   second_half['Distance'].min()                     
             if not args.treadmill:
                 lap_row["2nd half speed (m/s)"] = lap_row["2nd half distance"]/(lap_row["Total time"] / 2)                                                                     
             else: 
                 lap_row["2nd half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
             lap_row["2nd half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["2nd half speed (m/s)"]))
-            lap_row["2nd half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][int(lap_row["Halftime"])+1:]))/len(lap['Bpm_list'][int(lap_row["Halftime"])+1:])       
+            lap_row["2nd half avg. BPM"]= second_half['Bpm'].mean()      
             lap_row["2nd half speed/avg. BPM ratio"] = lap_row["2nd half speed (m/s)"]/lap_row["2nd half avg. BPM"]
                                                          
             # 1st/2nd half cardiac drift
