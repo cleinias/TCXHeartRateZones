@@ -141,7 +141,6 @@ def parse_tcx_lap(file_laps):
         if len(Bpm) != len(Distance) != len(Time):
             raise Exception("There is some seriously wrong with the TCX file: the Trackpoints do not contain homogenous data")
         lap_data['Trackpoints_series'] = pd.DataFrame({'Bpm':Bpm, 'Distance':Distance}, index=Time)
-#         print(lap_data['Trackpoints_series'])
         laps.append(lap_data)
     return laps
 
@@ -152,14 +151,10 @@ def get_lap_times_and_duration(lap_data):
     
     beginning_time=lap_data['Trackpoints_series'].index.values[0]
     end_time = lap_data['Trackpoints_series'].index.values[-1]
-    print(type(beginning_time))
-    print("beginning time: ", beginning_time)
-    print("end time:  ", end_time)
     if  lap_data['Lap_coords'] and args.local_time:
         beginning_time = UTC_datetime2local(beginning_time, lap_data['Lap_coords']) 
         end_time = UTC_datetime2local(end_time, lap_data['Lap_coords']) 
     duration = end_time - beginning_time
-    print("duration:  ", duration)
     return (beginning_time, end_time, duration)
 
 def lap_halftime_value(lap):
@@ -205,7 +200,6 @@ def parse_laps(laps):
             else: 
                 lap_row["1st half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
             lap_row["1st half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["1st half speed (m/s)"]))
-#             lap_row["1st half avg. BPM"] = sum((int(i) for  i in lap['Bpm_list'][:int(lap_row["Halftime"])]))/len(lap['Bpm_list'][:int(lap_row["Halftime"])])       
             lap_row["1st half avg. BPM"] = first_half['Bpm'].mean()      
             lap_row["1st half speed/avg. BPM ratio"] = lap_row["1st half speed (m/s)"]/lap_row["1st half avg. BPM"]
 
@@ -222,6 +216,7 @@ def parse_laps(laps):
                                                          
             # 1st/2nd half cardiac drift
             lap_row["1st/2nd half drift"] = (lap_row["2nd half speed/avg. BPM ratio"]-lap_row["1st half speed/avg. BPM ratio"])/lap_row["1st half speed/avg. BPM ratio"]
+            lap_row['1st/2nd hald BPM-only drift'] = (lap_row["2nd half avg. BPM"] - lap_row["1st half avg. BPM"]) / lap_row["1st half avg. BPM"]
         except ZeroDivisionError as e:
             print(e, file=sys.stderr)
             print("Lap {} has 0 distance and/or 0 time. Skipping ".format(i), file=sys.stderr)
@@ -251,7 +246,7 @@ def csv_output(laps_array):
        version of the data in the array and optionally the column headers"""
     index_name = "lap"
     if not args.verbose:
-        columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift"]
+        columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift", '1st half avg. BPM', '2nd half avg. BPM', '1st/2nd hald BPM-only drift']
     else:
         columns_to_write = None                  # Pandas' to_csv print all columns is passed None as arg to param columns 
     if args.columns == 0:
