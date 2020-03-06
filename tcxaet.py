@@ -254,7 +254,7 @@ def csv_output(laps_array):
        version of the data in the array and optionally the column headers"""
     index_name = "lap"
     if not args.verbose:
-        columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift", '1st half avg. BPM', '2nd half avg. BPM', '1st/2nd hald BPM-only drift']
+        columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift", 'Avg. BPM', '1st half avg. BPM', '2nd half avg. BPM', '1st/2nd hald BPM-only drift']
     else:
         columns_to_write = None                  # Pandas' to_csv print all columns is passed None as arg to param columns 
     if args.columns == 0:
