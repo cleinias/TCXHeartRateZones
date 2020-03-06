@@ -28,16 +28,15 @@ It should work with both python 2 (2.7+) and python 3.
 Notice however that the *pandas* library it relies upon has dropped support 
 for python 2 starting 1/1/2020, and it may cease to work at any time.
  
-TCX (Garmin's Training Center format) are XML files containing data  about 1 or more activities.
+TCX files (Garmin's Training Center format files) are XML files containing data 
+about 1 or more activities.
 Every activity node contains a Track node with a series of evenly spaced
-Trackpoints (normally 1 second apart). Every Trackpoint includes the Time 
+Trackpoints (normally 1 second apart, but not necessarily). Every Trackpoint includes the Time 
 and may include a HeartRateBpm data item (as an integer).
 
-This utility reads all the HeartRateBpm values into a pandas Series
+tcxzones reads all the HeartRateBpm values into a pandas Series
 and bins them into the specified number of buckets.
-Since all Garmin devices collect HeartRateBpm at 1-second intervals, 
-the number of occurrences in each bin indicates the number of seconds
-spent in each zone.
+
 
 ## Library used:
 * lxml.etree for manipulation of TCX files and extraction of heartrate data
