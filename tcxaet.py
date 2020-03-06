@@ -2,18 +2,18 @@
 #
 # Copyright (c) 2020 Stefano Franchi
 #
-# TCXHeartRateZones is free software: you can redistribute it and/or modify 
+# tcxaet.py is free software: you can redistribute it and/or modify 
 # it under the terms of the GNU General Public License as published by 
 # the Free Software Foundation, either version 3 of the License, 
 # or (at your option) any later version.
 #
-# TCXHeartRateZones txtis distributed in the hope that it will be useful, 
+# tcxaet.py is distributed in the hope that it will be useful, 
 # but WITHOUT ANY WARRANTY; without even the implied warranty of 
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 # See the GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License 
-# along with TCXHeartRateZones. If not, see http://www.gnu.org/licenses/.
+# along with tcxaet.py. If not, see http://www.gnu.org/licenses/.
 
 
 
@@ -44,7 +44,7 @@ MIN2SECS = 60 # for clarity in formulas
 
 # Parsing command line arguments, using options for required arguments
 # Disable default help
-parser = ArgumentParser(description='Read speed and heart rate data from (a list of) TCX files and compues the cardiac drift between the lap\'s first and second half', add_help=False)
+parser = ArgumentParser(description='Reads speed and heart rate data from (a list of) TCX files and computes overall average BPM and the cardiac drift between the lap\'s first and second half', add_help=False)
 required = parser.add_argument_group('required arguments')
 optional = parser.add_argument_group('optional arguments')
 
@@ -67,14 +67,14 @@ try:
     from timezonefinder import TimezoneFinder
     import pytz
 except:
-    print("timezonefinderpackage not installed. Using UTC time and ignoring --local-time option.")
+    print("timezonefinder package not installed. Using UTC time and ignoring --local-time option.")
     args.local_time=False
 
 
 # FUNCTIONS
 
 def UTC_datetime2local(datetime, coords):
-    """Convert TCX UTS's datetimes to local time"""
+    """Convert TCX UTC's datetimes to local time"""
 
     datetime = pytz.utc.localize(datetime) #Garmin's TCX datetimes are always UTC, but only implicitly 
     return datetime.astimezone(pytz.timezone(TimezoneFinder().timezone_at(lng=coords[0], lat=coords[1])))
