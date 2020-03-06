@@ -25,7 +25,7 @@ import pandas as pd
 
 # Constants    
 # Defining a dictionary of Garmin's TCX format namespaces
-# All non-default namespaces defined in Garmin's TCX files asof Jan 2020, for future reference 
+# All non-default namespaces defined in Garmin's TCX files as of Jan 2020, for future reference 
 #NSMAP = {"ns5" : "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
          #"ns3" : "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
          #"ns2" : "http://www.garmin.com/xmlschemas/UserProfile/v2",
