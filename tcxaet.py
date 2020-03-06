@@ -53,7 +53,7 @@ optional.add_argument('-h','--help',action='help',default=SUPPRESS,help='show th
 
 # Add command line arguments
 required.add_argument("file_list", nargs=REMAINDER, help="One or more TCX or FIT files containing heart rate data for one or more activities", type=str)
-optional.add_argument("-v", "--verbose", action="count", default=0, help = "Turn on verbose output")
+optional.add_argument("-d", "--details", action="store_true", default=False, help="Print more data about every lap")
 optional.add_argument("-c", "--columns", action="store_true", default=False, help="Print column headers in output")
 optional.add_argument("-l", "--local-time", action="store_true", default=True, help="Converts laps's UTC time to local time. Needs timezonefinder package installed ")
 # the treadmill option accepts a single parameter for the dummy treadmill pace, defaults to 12 min/mi if the option is given with no value, and to False if not given  
@@ -207,6 +207,7 @@ def parse_laps(laps):
                 lap_row["1st half speed (m/s)"] = lap_row["1st half distance"]/(lap_row["Total time"] / 2)                                                          
             else: 
                 lap_row["1st half speed (m/s)"] = min_miles2meter_sec(args.treadmill)
+                
             lap_row["1st half pace (min:mi)"] = mil_min_val_to_mil_min_string(meter_sec_2_min_miles(lap_row["1st half speed (m/s)"]))
             lap_row["1st half avg. BPM"] = first_half['Bpm'].mean()      
             lap_row["1st half speed/avg. BPM ratio"] = lap_row["1st half speed (m/s)"]/lap_row["1st half avg. BPM"]
@@ -231,21 +232,22 @@ def parse_laps(laps):
         all_laps_data.append(lap_row)
     return pd.DataFrame(all_laps_data)
 
-def make_lap_header(lap):
-    """Return a string with all the info about the input lap"""
-    #FIXME:add formatting string and remove variable placeholders
+# def make_lap_header(lap):
+#     """Return a string with all the info about the input lap"""
+#     #FIXME: add formatting string and remove variable placeholders
+#     #FIXME: function not currently used, yet needed with -d (--details) option
     
-    beginning_date_string = lap['Time_list'][0]
-    end_date_string = lap['Time_list'][-1]
-    date_format_string = "%Y-%m-%dT%H:%M:%S.%fZ"
-    beginning_time=datetime.strptime(beginning_date_string,date_format_string)
-    end_time = datetime.strptime(end_date_string,date_format_string)
-    duration = end_time - beginning_time
-    total_time_computed = duration.total_seconds() 
-    lap_header =  "Lap {i} -->  Start: {lap['Time_list'][0]} Total time: {total_time_summary} Computed time: {duration.total_seconds()} \
-                   Total track points: {total_trackpoints} Total Distance: {round(total_distance,2)} Average Bpm: {round(average_bpm)}\
-                   Average speed in m/s {round(speed_meter_sec,3)}  Average pace in min/mi {pace_min_miles}".format()
-    return lap_header
+#     beginning_date_string = lap['Time_list'][0]
+#     end_date_string = lap['Time_list'][-1]
+#     date_format_string = "%Y-%m-%dT%H:%M:%S.%fZ"
+#     beginning_time=datetime.strptime(beginning_date_string,date_format_string)
+#     end_time = datetime.strptime(end_date_string,date_format_string)
+#     duration = end_time - beginning_time
+#     total_time_computed = duration.total_seconds() 
+#     lap_header =  "Lap {i} -->  Start: {lap['Time_list'][0]} Total time: {total_time_summary} Computed time: {duration.total_seconds()} \
+#                    Total track points: {total_trackpoints} Total Distance: {round(total_distance,2)} Average Bpm: {round(average_bpm)}\
+#                    Average speed in m/s {round(speed_meter_sec,3)}  Average pace in min/mi {pace_min_miles}".format()
+#     return lap_header
 
 
 # OUTPUT CSV-FORMATTED DATA        
@@ -253,10 +255,10 @@ def csv_output(laps_array):
     """Return a csv formatted string with either a short or a long 
        version of the data in the array and optionally the column headers"""
     index_name = "lap"
-    if not args.verbose:
+    if not args.details:
         columns_to_write = ["Filename", "Beginning time", "End time", "Duration", "1st/2nd half drift", 'Avg. BPM', '1st half avg. BPM', '2nd half avg. BPM', '1st/2nd hald BPM-only drift']
     else:
-        columns_to_write = None                  # Pandas' to_csv print all columns is passed None as arg to param columns 
+        columns_to_write = None                  # Pandas' to_csv print all columns when passed None as arg to param columns 
     if args.columns == 0:
         return laps_array.to_csv(columns = columns_to_write,header=False)
     else:
