@@ -144,6 +144,10 @@ def parse_tcx_lap(file_laps):
         laps.append(lap_data)
     return laps
 
+def datetime64_2_datetime(aNumpyDaytime64):
+        """Convert a numpy datetime64 object into a regular pythone datetime"""
+        return pd.Timestamp(aNumpyDaytime64).to_pydatetime()
+    
 def get_lap_times_and_duration(lap_data):
     """Extract beginning time, end time, and duration from lap info and format appropriately.
        Convert TCX's UTC time to lap's local time if passed long and lat coords.  
@@ -152,6 +156,10 @@ def get_lap_times_and_duration(lap_data):
     beginning_time=lap_data['Trackpoints_series'].index.values[0]
     end_time = lap_data['Trackpoints_series'].index.values[-1]
     if  lap_data['Lap_coords'] and args.local_time:
+        # numpy datetime64 is always UTC and does not know about timezones. 
+        # Need to convert to regular python datetime objects first
+        beginning_time = datetime64_2_datetime(beginning_time)
+        end_time = datetime64_2_datetime(end_time)
         beginning_time = UTC_datetime2local(beginning_time, lap_data['Lap_coords']) 
         end_time = UTC_datetime2local(end_time, lap_data['Lap_coords']) 
     duration = end_time - beginning_time
